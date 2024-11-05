@@ -7,6 +7,11 @@ from copy import deepcopy
 import time
 from helpers import random_move, count_capture, execute_move, check_endgame, get_valid_moves
 
+
+#Initial idea: Greedy agent, maximises number of flips
+#improvement: Greedy agent, prioritises corners, maximises number of flips?
+#minimax with alpha beta pruning for better chances at winning
+
 @register_agent("student_agent")
 class StudentAgent(Agent):
   """
@@ -17,7 +22,7 @@ class StudentAgent(Agent):
   def __init__(self):
     super(StudentAgent, self).__init__()
     self.name = "StudentAgent"
-
+    
   def step(self, chess_board, player, opponent):
     """
     Variables:
@@ -32,20 +37,29 @@ class StudentAgent(Agent):
     and more helpful tools.
 
     """
-
+    
+    max_flips=0
     # Some simple code to help you with timing. Consider checking 
     # time_taken during your search and breaking with the best answer
     # so far when it nears 2 seconds.
     start_time = time.time()
-    legal_player = get_valid_moves(chess_board, player)
-    print("for player, ",legal_player)
-    legal_opponent= get_valid_moves(chess_board, opponent)
-    print("for opponent, ",legal_opponent)
+    ##### TODO: We can make this function compare different strategies we used. 
+    #greedyStep(self, chess_board, player, opponent)
+    #minimax(self, chess_board, player, opponent)
+    #alphabeta(self, chess_board, player, opponent)
+    #astar(self, chess_board, player, opponent)?
+    legal_player= get_valid_moves(chess_board, player)
+    print(legal_player)
+    for move in legal_player:
+      noFlips= count_capture(chess_board, move, player) #i want to clone the board here but keep getting NoneType error
+      print(f"Move:  {move}, flips: { noFlips}")
+      if noFlips > max_flips:
+        max_flips= noFlips
+        best_move=move
+    print("found the best move!! ", best_move)
     time_taken = time.time() - start_time
+    print("My greedy AI's turn took ", time_taken, "seconds.")
 
-    print("My AI's turn took ", time_taken, "seconds.")
+    return best_move #if best!=None else random_move(chess_board,player)
 
-    # Dummy return (you should replace this with your actual logic)
-    # Returning a random valid move as an example
-    return random_move(chess_board,player)
 
