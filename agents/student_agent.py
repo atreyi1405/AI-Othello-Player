@@ -20,8 +20,7 @@ class StudentAgent(Agent):
 
   def step(self, chess_board, player, opponent):
     """
-    Implement the step function of your agent here.
-    You can use the following variables to access the chess board:
+    Variables:
     - chess_board: a numpy array of shape (board_size, board_size)
       where 0 represents an empty spot, 1 represents Player 1's discs (Blue),
       and 2 represents Player 2's discs (Brown).
@@ -32,13 +31,16 @@ class StudentAgent(Agent):
     wants to place the next disc. Use functions in helpers to determine valid moves
     and more helpful tools.
 
-    Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
     """
 
     # Some simple code to help you with timing. Consider checking 
     # time_taken during your search and breaking with the best answer
     # so far when it nears 2 seconds.
     start_time = time.time()
+    legal_player = get_valid_moves(chess_board, player)
+    print("for player, ",legal_player)
+    legal_opponent= get_valid_moves(chess_board, opponent)
+    print("for opponent, ",legal_opponent)
     time_taken = time.time() - start_time
 
     print("My AI's turn took ", time_taken, "seconds.")
