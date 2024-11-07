@@ -37,17 +37,19 @@ class StudentAgent(Agent):
     and more helpful tools.
 
     """
-    
+    return self.greedyFlips(chess_board, player, opponent)#self.greedyFlips(chess_board, player, opponent) #temporary: we can keep changing this to different methods to evaluate performance
+  
+  def greedyFlips(self, chess_board, player, opponent):
     max_flips=0
     # Some simple code to help you with timing. Consider checking 
     # time_taken during your search and breaking with the best answer
     # so far when it nears 2 seconds.
     start_time = time.time()
-    ##### TODO: We can make this function compare different strategies we used. 
-    #greedyStep(self, chess_board, player, opponent)
+    ##### TODO: 
+    #greedyStep(self, chess_board, player, opponent), flips, prioritising corners and reducing opponent captures?
     #minimax(self, chess_board, player, opponent)
     #alphabeta(self, chess_board, player, opponent)
-    #astar(self, chess_board, player, opponent)?
+    #try MCTS?
     legal_player= get_valid_moves(chess_board, player)
     print(legal_player)
     for move in legal_player:
@@ -61,5 +63,4 @@ class StudentAgent(Agent):
     print("My greedy AI's turn took ", time_taken, "seconds.")
 
     return best_move #if best!=None else random_move(chess_board,player)
-
-
+ 
