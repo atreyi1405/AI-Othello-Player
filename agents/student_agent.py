@@ -12,7 +12,9 @@ class StudentAgent(Agent):
         self.name = "StudentAgent"
     
     def step(self, chess_board, player, opponent):
-        self.max_depth = 3  #we can increase this to improve performance
+        self.max_depth = 3  #we can increase this to improve performance, i'm thinking of doing alpha beta to reduce computations
+        self.corners = [(0, 0), (0, -1), (-1, 0), (-1, -1)]
+        self.cornerVal = 100
         _, best_move = self.minimax(chess_board, player, opponent, depth=self.max_depth, isMax=True)
         return best_move
         #return self.greedyFlips(chess_board, player, opponent)
@@ -44,7 +46,8 @@ class StudentAgent(Agent):
         best_move=None
         is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
         if depth == 0 or is_endgame:
-            return player_score - opponent_score, best_move
+            score = player_score - opponent_score 
+            return ( self.eval(chess_board, player, opponent, score)), best_move ####player_score, opponent_score
         if isMax:  #maximising player
             start_time = time.time()
             value = float('-inf')
@@ -81,4 +84,15 @@ class StudentAgent(Agent):
             time_taken = time.time() - start_time
             print("My minimax AI's turn took ", time_taken, "seconds.")
             return value, best_move 
+        
+    def eval(self, chess_board, player, opponent, score):
+        for corner in self.corners:
+            if chess_board[corner[0]][corner[1]]== player:
+                print("player found a corner")
+                score += self.cornerVal
+            elif chess_board[corner[0]][corner[1]] == opponent:
+                    print("opponent found a corner")
+                    score -= self.cornerVal
+        return score
+
 
