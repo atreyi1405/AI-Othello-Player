@@ -16,6 +16,8 @@ class StudentAgent(Agent):
         _, best_move = self.minimax(chess_board, player, opponent, depth=self.max_depth, isMax=True)
         return best_move
         #return self.greedyFlips(chess_board, player, opponent)
+        #todo: not sure if we should try alpha-beta, minimax is working just fine as is
+        #todo: try monte-carlo, upper confidence ?
         
 
     def greedyFlips(self, chess_board, player, opponent):
