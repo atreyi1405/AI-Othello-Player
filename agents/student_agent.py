@@ -1,66 +1,82 @@
-# Student agent: Add your own agent here
 from agents.agent import Agent
 from store import register_agent
-import sys
 import numpy as np
 from copy import deepcopy
 import time
 from helpers import random_move, count_capture, execute_move, check_endgame, get_valid_moves
 
-
-#Initial idea: Greedy agent, maximises number of flips
-#improvement: Greedy agent, prioritises corners, maximises number of flips?
-#minimax with alpha beta pruning for better chances at winning
-
 @register_agent("student_agent")
 class StudentAgent(Agent):
-  """
-  A class for your implementation. Feel free to use this class to
-  add any helper functionalities needed for your agent.
-  """
-
-  def __init__(self):
-    super(StudentAgent, self).__init__()
-    self.name = "StudentAgent"
+    def __init__(self):
+        super(StudentAgent, self).__init__()
+        self.name = "StudentAgent"
     
-  def step(self, chess_board, player, opponent):
-    """
-    Variables:
-    - chess_board: a numpy array of shape (board_size, board_size)
-      where 0 represents an empty spot, 1 represents Player 1's discs (Blue),
-      and 2 represents Player 2's discs (Brown).
-    - player: 1 if this agent is playing as Player 1 (Blue), or 2 if playing as Player 2 (Brown).
-    - opponent: 1 if the opponent is Player 1 (Blue), or 2 if the opponent is Player 2 (Brown).
+    def step(self, chess_board, player, opponent):
+        self.max_depth = 3  #we can increase this to improve performance
+        _, best_move = self.minimax(chess_board, player, opponent, depth=self.max_depth, isMax=True)
+        return best_move
+        #return self.greedyFlips(chess_board, player, opponent)
+        
 
-    You should return a tuple (r,c), where (r,c) is the position where your agent
-    wants to place the next disc. Use functions in helpers to determine valid moves
-    and more helpful tools.
+    def greedyFlips(self, chess_board, player, opponent):
+        max_flips = 0
+        start_time = time.time()
+        best_move = None
+        legal_player = get_valid_moves(chess_board, player)
+        print(legal_player)
+        for move in legal_player:
+            #as per suggestions in the helper function, i'm now cloning the board before making moves
+            new_board = deepcopy(chess_board)
+            execute_move(new_board, move, player)
+            noFlips = count_capture(chess_board, move, player)
+            print(f"Move:  {move}, flips: { noFlips}")
+            if noFlips > max_flips:
+                max_flips = noFlips
+                best_move = move
+        print("found the best move!! ", best_move)
+        time_taken = time.time() - start_time
+        print("My greedy AI's turn took ", time_taken, "seconds.")
+        return best_move
+    
+    def minimax(self, chess_board, player, opponent, depth, isMax):
+        best_move=None
+        is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
+        if depth == 0 or is_endgame:
+            return player_score - opponent_score, best_move
+        if isMax:  #maximising player
+            start_time = time.time()
+            value = float('-inf')
+            best_move = None
+            legal_player_moves = get_valid_moves(chess_board, player)
+            print(legal_player_moves)
+            for move in legal_player_moves:
+                new_board = deepcopy(chess_board)
+                execute_move(new_board, move, player)
+                move_value = self.minimax(new_board, player, opponent, depth - 1, False)
+                print("okay move value you get in player is this:  ", move_value)
+                if move_value[0] > value:
+                    value = move_value[0]
+                    best_move = move
+            print("found the best move!! ", best_move)
+            time_taken = time.time() - start_time
+            print("My minimax AI's turn took ", time_taken, "seconds.")
+            return value, best_move 
+        else:  # minimising opponsent 
+            start_time = time.time()
+            value = float('inf')
+            best_move = None
+            legal_opponent_moves = get_valid_moves(chess_board, opponent)
+            print(legal_opponent_moves)
+            for move in legal_opponent_moves:
+                new_board = deepcopy(chess_board)
+                execute_move(new_board, move, opponent)
+                move_value = self.minimax(new_board, player, opponent, depth - 1, True)
+                print("okay move value you get in opponent is this:  ", move_value)
+                if move_value[0] < value:
+                    value = move_value[0]
+                    best_move = move
+            print("found the best move!! ", best_move)
+            time_taken = time.time() - start_time
+            print("My minimax AI's turn took ", time_taken, "seconds.")
+            return value, best_move 
 
-    """
-    return self.greedyFlips(chess_board, player, opponent)#self.greedyFlips(chess_board, player, opponent) #temporary: we can keep changing this to different methods to evaluate performance
-  
-  def greedyFlips(self, chess_board, player, opponent):
-    max_flips=0
-    # Some simple code to help you with timing. Consider checking 
-    # time_taken during your search and breaking with the best answer
-    # so far when it nears 2 seconds.
-    start_time = time.time()
-    ##### TODO: 
-    #greedyStep(self, chess_board, player, opponent), flips, prioritising corners and reducing opponent captures?
-    #minimax(self, chess_board, player, opponent)
-    #alphabeta(self, chess_board, player, opponent)
-    #try MCTS?
-    legal_player= get_valid_moves(chess_board, player)
-    print(legal_player)
-    for move in legal_player:
-      noFlips= count_capture(chess_board, move, player) #i want to clone the board here but keep getting NoneType error
-      print(f"Move:  {move}, flips: { noFlips}")
-      if noFlips > max_flips:
-        max_flips= noFlips
-        best_move=move
-    print("found the best move!! ", best_move)
-    time_taken = time.time() - start_time
-    print("My greedy AI's turn took ", time_taken, "seconds.")
-
-    return best_move #if best!=None else random_move(chess_board,player)
- 
