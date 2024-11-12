@@ -53,45 +53,53 @@ class StudentAgent(Agent):
             value = float('-inf')
             best_move = None
             legal_player_moves = get_valid_moves(chess_board, player)
-            print(legal_player_moves)
+            #print(legal_player_moves)
             for move in legal_player_moves:
                 new_board = deepcopy(chess_board)
                 execute_move(new_board, move, player)
                 move_value = self.minimax(new_board, player, opponent, depth - 1, False)
-                print("okay move value you get in player is this:  ", move_value)
+                #noFlips_player = count_capture(chess_board, move, player)
+                #print("okay move value you get in player is this:  ", move_value)
+                #if move in self.corners:
+                    #move_value[0]= move_value[0]+corner_bonus
+                    #noFlips_player+=100
                 if move_value[0] > value:
                     value = move_value[0]
                     best_move = move
-            print("found the best move!! ", best_move)
+            #print("found the best move!! ", best_move)
             time_taken = time.time() - start_time
-            print("My minimax AI's turn took ", time_taken, "seconds.")
+            #print("My minimax AI's turn took ", time_taken, "seconds.")
             return value, best_move 
         else:  # minimising opponsent 
             start_time = time.time()
             value = float('inf')
             best_move = None
             legal_opponent_moves = get_valid_moves(chess_board, opponent)
-            print(legal_opponent_moves)
+            #print(legal_opponent_moves)
             for move in legal_opponent_moves:
                 new_board = deepcopy(chess_board)
                 execute_move(new_board, move, opponent)
                 move_value = self.minimax(new_board, player, opponent, depth - 1, True)
-                print("okay move value you get in opponent is this:  ", move_value)
+                #noFlips_opponent = count_capture(chess_board, move, opponent)
+                #print("okay move value you get in opponent is this:  ", move_value)
+                #if move in self.corners:
+                    #noFlips_opponent-=100
                 if move_value[0] < value:
                     value = move_value[0]
                     best_move = move
-            print("found the best move!! ", best_move)
+            #print("found the best move!! ", best_move)
             time_taken = time.time() - start_time
-            print("My minimax AI's turn took ", time_taken, "seconds.")
+            #print("My minimax AI's turn took ", time_taken, "seconds.")
             return value, best_move 
-        
+
+      
     def eval(self, chess_board, player, opponent, score):
         for corner in self.corners:
             if chess_board[corner[0]][corner[1]]== player:
-                print("player found a corner")
+                #print("player found a corner")
                 score += self.cornerVal
             elif chess_board[corner[0]][corner[1]] == opponent:
-                    print("opponent found a corner")
+                    #print("opponent found a corner")
                     score -= self.cornerVal
         return score
 
