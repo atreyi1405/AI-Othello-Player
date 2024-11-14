@@ -12,13 +12,13 @@ class StudentAgent(Agent):
         self.name = "StudentAgent"
     
     def step(self, chess_board, player, opponent):
-        self.max_depth = 3  #we can increase this to improve performance, i'm thinking of doing alpha beta to reduce computations
+        self.max_depth = 4  
         self.corners = [(0, 0), (0, -1), (-1, 0), (-1, -1)]
         self.cornerVal = 100
-        _, best_move = self.minimax(chess_board, player, opponent, depth=self.max_depth, isMax=True)
+        _, best_move = self.alphabeta(chess_board, player, opponent, depth=self.max_depth, isMax=True)
         return best_move
         #return self.greedyFlips(chess_board, player, opponent)
-        #todo: not sure if we should try alpha-beta, minimax is working just fine as is
+        #todo: make the heuristic stronger
         #todo: try monte-carlo, upper confidence ?
         
 
@@ -102,5 +102,54 @@ class StudentAgent(Agent):
                     #print("opponent found a corner")
                     score -= self.cornerVal
         return score
+
+    def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf')):
+        best_move=None
+        is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
+        if depth == 0 or is_endgame:
+            score = player_score - opponent_score
+            return self.eval(chess_board, player, opponent, score), best_move
+        if isMax: #maximising player
+            start_time = time.time()
+            value = float('-inf')
+            legal_player_moves = get_valid_moves(chess_board, player)
+            #print(legal_player_moves)
+            for move in legal_player_moves:
+                new_board = deepcopy(chess_board)
+                execute_move(new_board, move, player)
+                move_value = self.alphabeta(new_board, player, opponent, depth - 1, False, alpha,beta)
+                #print("okay move value you get in opponent is this:  ", move_value)
+                if move_value[0] > value:
+                    value = move_value[0]
+                    best_move = move
+                alpha = max(alpha, value)
+                if alpha >= beta: #this is the difference, immediately break: now we're avoiding the repeating branches, significantly reducing time!
+                    break
+            #print("found the best move!! ", best_move)
+            time_taken = time.time() - start_time
+            #print("My alphabeta AI's turn took ", time_taken, "seconds.")
+            return value,best_move
+        else:
+            start_time = time.time()
+            value = float('inf')
+            legal_opponent_moves = get_valid_moves(chess_board, opponent)
+            for move in legal_opponent_moves:
+                new_board = deepcopy(chess_board)
+                execute_move(new_board, move, opponent)
+                move_value = self.alphabeta(new_board, player, opponent, depth - 1, True, alpha,beta)
+                #print("okay move value you get in opponent is this:  ", move_value)
+                if move_value[0] < value:
+                    value = move_value[0]
+                    best_move = move
+                beta = min(alpha, value)
+                if alpha >= beta:
+                    break
+            #print("found the best move!! ", best_move)
+            time_taken = time.time() - start_time
+            #print("My alphabeta AI's turn took ", time_taken, "seconds.")
+            return value,best_move
+                    
+                
+                                                                                                             
 
 
