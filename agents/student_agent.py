@@ -12,7 +12,7 @@ class StudentAgent(Agent):
         self.name = "StudentAgent"
     
     def step(self, chess_board, player, opponent):
-        self.max_depth = 4  
+        self.max_depth = 3
         self.corners = [(0, 0), (0, -1), (-1, 0), (-1, -1)]
         self.cornerVal = 100
         _, best_move = self.alphabeta(chess_board, player, opponent, depth=self.max_depth, isMax=True)
@@ -106,9 +106,9 @@ class StudentAgent(Agent):
     def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf')):
         best_move=None
         is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
+        current_score = self.eval(chess_board, player, opponent, player_score-opponent_score)
         if depth == 0 or is_endgame:
-            score = player_score - opponent_score
-            return self.eval(chess_board, player, opponent, score), best_move
+            return current_score, best_move
         if isMax: #maximising player
             start_time = time.time()
             value = float('-inf')
@@ -148,6 +148,9 @@ class StudentAgent(Agent):
             time_taken = time.time() - start_time
             #print("My alphabeta AI's turn took ", time_taken, "seconds.")
             return value,best_move
+        
+    
+
                     
                 
                                                                                                              
