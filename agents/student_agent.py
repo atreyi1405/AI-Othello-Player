@@ -12,15 +12,9 @@ class StudentAgent(Agent):
         self.name = "StudentAgent"
     
     def step(self, chess_board, player, opponent):
-        start=time.time()
-        best_move=None
-        self.max_depth = 3
+        self.max_depth = 4  
         self.corners = [(0, 0), (0, -1), (-1, 0), (-1, -1)]
         self.cornerVal = 100
-        self.edgeVal=50
-        #for depth in range(1,self.max_depth + 1):
-            #if time.time()-start>=2:
-                #break
         _, best_move = self.alphabeta(chess_board, player, opponent, depth=self.max_depth, isMax=True)
         return best_move
         #return self.greedyFlips(chess_board, player, opponent)
@@ -108,63 +102,19 @@ class StudentAgent(Agent):
                     #print("opponent found a corner")
                     score -= self.cornerVal
         return score
-    
-
-    #i noticed that we're missing obvious wins a lot, trying to implement a move order here, we need to have phases of the game
-    def moveorder(self, chess_board,player,opponent):
-        legal_player_moves = get_valid_moves(chess_board, player)
-        avail = np.sum(np.array(chess_board) == 0)
-        board_size = chess_board.shape[0] * chess_board.shape[1]
-        early_phase = board_size * 0.75
-        mid_phase = board_size * 0.40
-        
-        order=[]
-        for move in legal_player_moves:
-            new_board = deepcopy(chess_board)
-            execute_move(new_board, move, player)
-            #noflips = count_capture(new_board, move, player)
-            priority=0
-            iscorner= move in self.corners
-            isedge = (move[0] == 0 or move[0] == chess_board.shape[0] - 1 or move[1] == 0 or move[1] == chess_board.shape[1] - 1)
-            #we can try edges later
-            if avail>early_phase: #early
-                #print("available tiles are: ", avail, "so this phase is early-corners most valuable")
-                #priority = noflips
-                if iscorner: #most valuable
-                    priority += 100
-                if isedge:
-                    priority+= 50
-            elif avail<=early_phase and avail>mid_phase: #mid
-                #print("available tiles are: ", avail, "so this phase is mid-flips are more valuable")
-                #priority = noflips*3
-                if iscorner: #most valuable
-                    priority += 80
-                if isedge:
-                    priority +=30
-            else:
-                #print("available tiles are: ", avail, "so this phase is late")
-                #priority=noflips*5
-                if iscorner: #most valuable
-                    priority += 100
-                if isedge:
-                    priority+= 50
-            order.append((move, priority))
-        order.sort(reverse=True, key=lambda x: x[1]) #highest priority first
-        return [move for move,_ in order]
 
     def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf')):
         best_move=None
         is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
-        current_score = self.eval(chess_board, player, opponent, player_score-opponent_score)
         if depth == 0 or is_endgame:
-            return current_score, best_move
+            score = player_score - opponent_score
+            return self.eval(chess_board, player, opponent, score), best_move
         if isMax: #maximising player
             start_time = time.time()
             value = float('-inf')
-            #legal_player_moves = get_valid_moves(chess_board, player)
-            order_player= self.moveorder(chess_board, player,opponent)
+            legal_player_moves = get_valid_moves(chess_board, player)
             #print(legal_player_moves)
-            for move in order_player:
+            for move in legal_player_moves:
                 new_board = deepcopy(chess_board)
                 execute_move(new_board, move, player)
                 move_value = self.alphabeta(new_board, player, opponent, depth - 1, False, alpha,beta)
@@ -177,7 +127,7 @@ class StudentAgent(Agent):
                     break
             #print("found the best move!! ", best_move)
             time_taken = time.time() - start_time
-            #print("My alphabeta AI's turn took ", time_taken, "seconds.")
+            print("My alphabeta AI's turn took ", time_taken, "seconds.")
             return value,best_move
         else:
             start_time = time.time()
@@ -196,6 +146,10 @@ class StudentAgent(Agent):
                     break
             #print("found the best move!! ", best_move)
             time_taken = time.time() - start_time
-            #print("My alphabeta AI's turn took ", time_taken, "seconds.")
+            print("My alphabeta AI's turn took ", time_taken, "seconds.")
             return value,best_move
-        
+                    
+                
+                                                                                                             
+
+
