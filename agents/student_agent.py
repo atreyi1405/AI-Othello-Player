@@ -3,7 +3,26 @@ from store import register_agent
 import numpy as np
 from copy import deepcopy
 import time
+import math
 from helpers import random_move, count_capture, execute_move, check_endgame, get_valid_moves
+
+class Node:
+    def __init__(self, chess_board, player=None, move=None, parent=None):
+        self.chess_board=chess_board
+        self.player=player
+        self.parent=parent
+        self.move=move
+        self.children=[]
+        self.visit=0
+        self.wins=0
+    
+    def uct(self,c=1.0):
+        if self.visit==0:
+            return float('inf')
+        exploitation=self.wins/self.visit
+        exploration= c * np.sqrt((np.log(self.parent.visits))/self.visit)
+        return exploitation + exploration
+  
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -12,10 +31,17 @@ class StudentAgent(Agent):
         self.name = "StudentAgent"
     
     def step(self, chess_board, player, opponent):
-        self.max_depth = 4  
+        start=time.time()
+        self.max_depth = 3  
         self.corners = [(0, 0), (0, -1), (-1, 0), (-1, -1)]
         self.cornerVal = 100
-        _, best_move = self.alphabeta(chess_board, player, opponent, depth=self.max_depth, isMax=True)
+        for depth in range(1, self.max_depth+1): 
+            if time.time() - start >= 1.9:
+                break
+            _, move = self.alphabeta(chess_board, player, opponent, depth, isMax=True)
+            best_move = move
+        #return best_move
+        #_, best_move = self.alphabeta(chess_board, player, opponent, depth=self.max_depth, isMax=True)
         return best_move
         #return self.greedyFlips(chess_board, player, opponent)
         #todo: make the heuristic stronger
@@ -104,11 +130,14 @@ class StudentAgent(Agent):
         return score
 
     def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf')):
+        print("We're at depth: ", depth, "...")
         best_move=None
         is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
+        #call eval here, prioritising corners?
+        score = self.eval(chess_board, player, opponent, player_score-opponent_score)
         if depth == 0 or is_endgame:
-            score = player_score - opponent_score
-            return self.eval(chess_board, player, opponent, score), best_move
+            #score = player_score - opponent_score
+            return score, best_move #then just return score, best_move?
         if isMax: #maximising player
             start_time = time.time()
             value = float('-inf')
@@ -148,8 +177,4 @@ class StudentAgent(Agent):
             time_taken = time.time() - start_time
             print("My alphabeta AI's turn took ", time_taken, "seconds.")
             return value,best_move
-                    
-                
-                                                                                                             
-
 
