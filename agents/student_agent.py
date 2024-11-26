@@ -6,24 +6,6 @@ import time
 import math
 from helpers import random_move, count_capture, execute_move, check_endgame, get_valid_moves, get_directions
 
-#ignore
-class Node:
-    def __init__(self, chess_board, player=None, move=None, parent=None):
-        self.chess_board = chess_board
-        self.player = player
-        self.parent = parent
-        self.move = move
-        self.children = []
-        self.visit = 0
-        self.wins = 0
-
-    def uct(self, c=1.0):
-        if self.visit == 0:
-            return float('inf')
-        exploitation = self.wins / self.visit
-        exploration = c * math.sqrt(math.log(self.parent.visit) / self.visit)
-        return exploitation + exploration
-
 @register_agent("student_agent")
 class StudentAgent(Agent):
     def __init__(self):
@@ -40,6 +22,7 @@ class StudentAgent(Agent):
             best_move=move
         return best_move
         #return self.greedyFlips(chess_board, player, opponent)
+        #some pointers i got from gpt to improve turn time: iterative deepening is fine but it'd be better to dynamically adjust depth based on available time
         
 
     def greedyFlips(self, chess_board, player, opponent):
