@@ -4,6 +4,8 @@ import numpy as np
 from copy import deepcopy
 import time
 import math
+import psutil #pip install psutil please
+import os
 from helpers import random_move, count_capture, execute_move, check_endgame, get_valid_moves, get_directions
 
 @register_agent("student_agent")
@@ -20,6 +22,8 @@ class StudentAgent(Agent):
         _, move= self.alphabeta(chess_board,player,opponent,depth, isMax=True,start_time=start_time)
         if move is not None:
             best_move=move
+        time_taken=time.time()-start_time
+        print("My alphabeta AI's turn took ", time_taken, "seconds.")
         return best_move
         #return self.greedyFlips(chess_board, player, opponent)
         #some pointers i got from gpt to improve turn time: iterative deepening is fine but it'd be better to dynamically adjust depth based on available time
@@ -147,22 +151,22 @@ class StudentAgent(Agent):
     def is_stable(self, chess_board, row, col, player):
         if (row == 0 or row == len(chess_board) - 1) or (col == 0 or col == len(chess_board[0]) - 1):
             return True
-        directions=get_directions()
+        directions=get_directions() #defined in helper.py
         for dr, dc in directions:
             r, c = row + dr, col + dc
             if 0 <= r < len(chess_board) and 0 <= c < len(chess_board[0]) and chess_board[r][c] != player:
                 return False
         return True
 
-    def order_moves(self, chess_board, moves, player): 
+    def order_moves(self, chess_board, moves, player): #prioritising moves based on eval score
         return sorted(moves, key=lambda move: self.eval(self.exec(chess_board, move, player), player, 3 - player), reverse=True)
     def exec(self, chess_board, move, player):
         new_board = deepcopy(chess_board)
         execute_move(new_board, move, player)
         return new_board
 
-    def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None):
-        #print("We're at depth: ", depth, "...")
+    def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None): #start_time=None
+        print("We're at depth: ", depth, "...")
         if time.time() - start_time >= 1.9:
             return 0, None  #the max turn time was going up till 5 seconds
         best_move = None
@@ -182,8 +186,8 @@ class StudentAgent(Agent):
                 alpha = max(alpha, value)
                 if alpha >= beta:
                     break
-            time_taken=time.time()-start_time
-            print("My alphabeta AI's turn took ", time_taken, "seconds.")
+            #time_taken=time.time()-start_time
+            #print("My alphabeta AI's turn took ", time_taken, "seconds.")
             return value, best_move
         else:  #minimising player
             value = float('inf')
@@ -196,7 +200,9 @@ class StudentAgent(Agent):
                 beta = min(beta, value)
                 if alpha >= beta:
                     break
-            time_taken=time.time()-start_time
-            print("My alphabeta AI's turn took ", time_taken, "seconds.")
+            #time_taken=time.time()-start_time
+            #print("My alphabeta AI's turn took ", time_taken, "seconds.")
             return value, best_move
+        
+
 
