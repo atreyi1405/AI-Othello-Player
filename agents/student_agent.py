@@ -14,7 +14,6 @@ class StudentAgent(Agent):
     def step(self, chess_board, player, opponent):
         start_time = time.time()
         depth=3 #the tradeoff to being strict with time is digging less deeper, makes it easier for a human to win 
-        #self.max_depth = 3, changed this to dynamically adjust depth (suggestion to improve time )
         best_move = None
         _, move= self.alphabeta(chess_board,player,opponent,depth, isMax=True,start_time=start_time)
         if move is not None:
@@ -22,7 +21,7 @@ class StudentAgent(Agent):
         time_taken=time.time()-start_time
         print("My alphabeta AI's turn took ", time_taken, "seconds.")
         return best_move
-        #return self.greedyFlips(chess_board, player, opponent)
+        #return self.greedyFlips(chess_board, player, opponent) or self.minimax(chess_board, player, opponent, depth, True)
         #some pointers i got from gpt to improve turn time: iterative deepening is fine but it'd be better to dynamically adjust depth based on available time
         
 
@@ -36,7 +35,7 @@ class StudentAgent(Agent):
             #as per suggestions in the helper function, i'm now cloning the board before making moves
             new_board = deepcopy(chess_board)
             execute_move(new_board, move, player)
-            noFlips = count_capture(chess_board, move, player)
+            noFlips = count_capture(chess_board, move, player) #initial basic implementation of a heuristic 
             print(f"Move:  {move}, flips: { noFlips}")
             if noFlips > max_flips:
                 max_flips = noFlips
@@ -51,7 +50,7 @@ class StudentAgent(Agent):
         is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
         if depth == 0 or is_endgame:
             score = player_score - opponent_score 
-            return ( self.eval(chess_board, player, opponent, score)), best_move ####player_score, opponent_score
+            return ( self.eval(chess_board, player, opponent, score)), best_move 
         if isMax:  #maximising player
             start_time = time.time()
             value = float('-inf')
@@ -66,7 +65,7 @@ class StudentAgent(Agent):
                 #print("okay move value you get in player is this:  ", move_value)
                 #if move in self.corners:
                     #move_value[0]= move_value[0]+corner_bonus
-                    #noFlips_player+=100
+                    #noFlips_player+=100 this worsened the performance, need stronger heuristic factors
                 if move_value[0] > value:
                     value = move_value[0]
                     best_move = move
@@ -84,10 +83,6 @@ class StudentAgent(Agent):
                 new_board = deepcopy(chess_board)
                 execute_move(new_board, move, opponent)
                 move_value = self.minimax(new_board, player, opponent, depth - 1, True)
-                #noFlips_opponent = count_capture(chess_board, move, opponent)
-                #print("okay move value you get in opponent is this:  ", move_value)
-                #if move in self.corners:
-                    #noFlips_opponent-=100
                 if move_value[0] < value:
                     value = move_value[0]
                     best_move = move
@@ -137,7 +132,7 @@ class StudentAgent(Agent):
         #it's better to prioritise different things in different stages
         if stage < 0.3:
             #print("total pieces occupied so far: ", total_pieces, "so this is the early stage, corners are imp")
-            return 0.5 * mobility_score + 1.5 * corner_score + 0.5 * stability_score #i actually am not sure about these numbers loll, trial and error-- have to make the early stage more attacking tho
+            return 0.5 * mobility_score + 1.5 * corner_score + 0.5 * stability_score #these numbers come from trial and error
         elif stage < 0.7:
             #print("total pieces occupied so far: ", total_pieces, "so this is the mid stage")
             return 1.0 * mobility_score + 1.5 * corner_score + 0.8 * stability_score + 0.2 * piece_score #gets slightly better at attcking
@@ -155,17 +150,17 @@ class StudentAgent(Agent):
                 return False
         return True
 
-    def order_moves(self, chess_board, moves, player): #prioritising moves based on eval score
+    def order_moves(self, chess_board, moves, player): #prioritising moves based on eval score, this was changed from a pretty elaborate hardcoded move-order function i defined before
         return sorted(moves, key=lambda move: self.eval(self.exec(chess_board, move, player), player, 3 - player), reverse=True)
     def exec(self, chess_board, move, player):
         new_board = deepcopy(chess_board)
         execute_move(new_board, move, player)
         return new_board
 
-    def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None): #start_time=None
+    def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None): 
         print("We're at depth: ", depth, "...")
         if time.time() - start_time >= 1.9:
-            return 0, None  #the max turn time was going up till 5 seconds
+            return 0, None  #improved the max turn time
         best_move = None
         is_endgame, _, _ = check_endgame(chess_board, player, opponent)
         if depth == 0 or is_endgame:
