@@ -3,9 +3,6 @@ from store import register_agent
 import numpy as np
 from copy import deepcopy
 import time
-import math
-import psutil #pip install psutil please
-import os
 from helpers import random_move, count_capture, execute_move, check_endgame, get_valid_moves, get_directions
 
 @register_agent("student_agent")
