@@ -158,7 +158,7 @@ class StudentAgent(Agent):
         return new_board
 
     def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None): 
-        print("We're at depth: ", depth, "...")
+        #print("We're at depth: ", depth, "...")
         if time.time() - start_time >= 1.9:
             return 0, None  #improved the max turn time
         best_move = None
