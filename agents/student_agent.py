@@ -326,7 +326,7 @@ class StudentAgent(Agent):
         if not valid_moves:
             return
         
-        sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.exec(node.chess_board, m, node.player), node.player, -node.player), reverse=True)
+        sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.execution(node.chess_board, m, node.player), node.player, -node.player), reverse=True)
         tried_moves = {child.move for child in node.children}
 
         for move in sorted_moves:
@@ -376,8 +376,8 @@ class StudentAgent(Agent):
                 if not valid_moves:
                     current_player = -current_player
                     continue
-                    t
-                sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.exec(node.chess_board, m, node.player), node.player, -node.player), reverse=True)
+          
+                sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.execution(node.chess_board, m, node.player), node.player, -node.player), reverse=True)
                 
                 # appplying epsilon-greedy randomization for move selection 
                 move = sorted_moves[0] if depth_iter == 0 else valid_moves[np.random.randint(len(valid_moves))]
@@ -435,6 +435,7 @@ class StudentAgent(Agent):
             elif chess_board[corner[0]][corner[1]] == opponent:
                 corner_score -= cornerVal
 
+        
         if self.is_stable(chess_board, corner[0], corner[1], player):
             corner_score += cornerVal * 2  # add even more weight to stable corners
 
@@ -488,5 +489,12 @@ class StudentAgent(Agent):
         
         return (0.5 * mobility_score + 1.5 * corner_score +
             0.5 * stability_score + 0.3 * central_score + piece_score)
+        
+    
+    #Atreyi's modified function, designed by Toufic
+    def execution(self, chess_board, move, player):
+        new_board = self.clone_board(chess_board)
+        execute_move(new_board, move, player)
+        return new_board
 
 
