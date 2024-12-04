@@ -11,6 +11,7 @@ class StudentAgent(Agent):
         super(StudentAgent, self).__init__()
         self.name = "StudentAgent"
 
+    #This method selects the best move for the agent based on the Alpha-Beta Pruning algorithm.
     def step(self, chess_board, player, opponent):
         start_time = time.time()
         depth=3 #the tradeoff to being strict with time is digging less deeper, makes it easier for a human to win 
@@ -21,10 +22,11 @@ class StudentAgent(Agent):
         time_taken=time.time()-start_time
         print("My alphabeta AI's turn took ", time_taken, "seconds.")
         return best_move
-        #return self.greedyFlips(chess_board, player, opponent) or self.minimax(chess_board, player, opponent, depth, True)
-        #some pointers i got from gpt to improve turn time: iterative deepening is fine but it'd be better to dynamically adjust depth based on available time
+        # Solutions implemented can be called like:
+        # return self.greedyFlips(chess_board, player, opponent) or self.minimax(chess_board, player, opponent, depth, True)
         
 
+    #This method implements a basic heuristic approach where the agent selects the move that maximizes the number of captured pieces. It is computationally efficient but lacks strategic depth.
     def greedyFlips(self, chess_board, player, opponent):
         max_flips = 0
         start_time = time.time()
@@ -32,10 +34,9 @@ class StudentAgent(Agent):
         legal_player = get_valid_moves(chess_board, player)
         print(legal_player)
         for move in legal_player:
-            #as per suggestions in the helper function, i'm now cloning the board before making moves
             new_board = deepcopy(chess_board)
             execute_move(new_board, move, player)
-            noFlips = count_capture(chess_board, move, player) #initial basic implementation of a heuristic 
+            noFlips = count_capture(chess_board, move, player) 
             print(f"Move:  {move}, flips: { noFlips}")
             if noFlips > max_flips:
                 max_flips = noFlips
@@ -45,6 +46,7 @@ class StudentAgent(Agent):
         print("My greedy AI's turn took ", time_taken, "seconds.")
         return best_move
     
+    #This method implements the Minimax algorithm. It explores the game tree recursively, evaluating each move at a given depth and selecting the move that maximizes or minimizes the score.
     def minimax(self, chess_board, player, opponent, depth, isMax):
         best_move=None
         is_endgame, player_score, opponent_score = check_endgame(chess_board, player, opponent)
@@ -61,11 +63,6 @@ class StudentAgent(Agent):
                 new_board = deepcopy(chess_board)
                 execute_move(new_board, move, player)
                 move_value = self.minimax(new_board, player, opponent, depth - 1, False)
-                #noFlips_player = count_capture(chess_board, move, player)
-                #print("okay move value you get in player is this:  ", move_value)
-                #if move in self.corners:
-                    #move_value[0]= move_value[0]+corner_bonus
-                    #noFlips_player+=100 this worsened the performance, need stronger heuristic factors
                 if move_value[0] > value:
                     value = move_value[0]
                     best_move = move
@@ -73,7 +70,7 @@ class StudentAgent(Agent):
             time_taken = time.time() - start_time
             #print("My minimax AI's turn took ", time_taken, "seconds.")
             return value, best_move 
-        else:  # minimising opponsent 
+        else:  #minimising opponsent 
             start_time = time.time()
             value = float('inf')
             best_move = None
@@ -91,7 +88,7 @@ class StudentAgent(Agent):
             #print("My minimax AI's turn took ", time_taken, "seconds.")
             return value, best_move
     
-    
+    #Evaluation function - computes a score for a given board state. It takes into account factors such as corner occupancy, stability, mobility, and piece count, and adapts the weighting based on the game stage.
     def eval(self, chess_board, player, opponent):
         corners = [(0, 0), (0, len(chess_board)-1), (len(chess_board)-1, 0), (len(chess_board)-1, len(chess_board)-1)]
         cornerVal = 100
@@ -124,7 +121,7 @@ class StudentAgent(Agent):
         opponent_moves = len(get_valid_moves(chess_board, opponent))
         mobility_score = 10 * (player_moves - opponent_moves)
 
-        #pieve count- i believe this is not as important--https://www.ultraboardgames.com/othello/strategy.php
+        #piece count- i believe this is not as important--https://www.ultraboardgames.com/othello/strategy.php
         player_pieces = np.sum(chess_board == player)
         opponent_pieces = np.sum(chess_board == opponent)
         piece_score = player_pieces - opponent_pieces
@@ -140,6 +137,7 @@ class StudentAgent(Agent):
             #print("total pieces occupied so far: ", total_pieces, "so this is the late stage, corners are imp")
             return 0.2 * mobility_score + 2.0 * corner_score + 1.0 * piece_score + 0.5 * stability_score #it does better against random in the late stages, but might lose to human agent
 
+    #This helper method checks if a piece is stable (if it is in a corner or surrounded by the same color in all directions)
     def is_stable(self, chess_board, row, col, player):
         if (row == 0 or row == len(chess_board) - 1) or (col == 0 or col == len(chess_board[0]) - 1):
             return True
@@ -150,13 +148,17 @@ class StudentAgent(Agent):
                 return False
         return True
 
-    def order_moves(self, chess_board, moves, player): #prioritising moves based on eval score, this was changed from a pretty elaborate hardcoded move-order function i defined before
+    #This method orders the valid moves based on their evaluation score to prioritize better moves
+    def order_moves(self, chess_board, moves, player): 
         return sorted(moves, key=lambda move: self.eval(self.exec(chess_board, move, player), player, 3 - player), reverse=True)
+    
+    #Executes a move by creating a new board state after applying the move.
     def exec(self, chess_board, move, player):
         new_board = deepcopy(chess_board)
         execute_move(new_board, move, player)
         return new_board
 
+    #Strongest algorithm developed so far - recursively explores the game tree while pruning branches that cannot influence the outcome
     def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None): 
         #print("We're at depth: ", depth, "...")
         if time.time() - start_time >= 1.9:
