@@ -47,10 +47,10 @@ class StudentAgent(Agent):
         super(StudentAgent, self).__init__()
         self.name = "StudentAgent"
         self.iterations = 100 # Num of MCTS iterations
-        self.time_limit = 2 # Maximum time per move in seconds
+        self.time_limit = 1.90 #  Maximum time per move in seconds, lower than 2s to account for variability
 
     def clone_board(self, board): # might help in reducing run-time vs deepcopy
-        return np.copy(board)
+        return np.copy(board) # computationally faster than deepcopy from copy module
 
     #This method selects the best move for the agent based on the Alpha-Beta Pruning algorithm.
     def step(self, chess_board, player, opponent):
@@ -248,11 +248,16 @@ class StudentAgent(Agent):
         depth = 5
         nSims = 2
 
+        # Timing the MCTS loop in the `step` method
+        start_time = time.time() # track time before following operations.
+
         total_squares = len(chess_board) * len(chess_board)
         total_pieces = np.sum(chess_board != 0)  # Occupied squares
         stage = total_pieces / total_squares
         epsilon = 0.1 if stage < 0.5 else 0.05  # Less randomness in late game
         
+        # if stage > 0.7: # late game, computationally expensive, so lower depth & nSims
+        #     depth = 3
 
         root = Node(chess_board=chess_board, player=player, eval_fn=self.evaluation)
         self.expand(root)
@@ -261,13 +266,10 @@ class StudentAgent(Agent):
         N += nSims
         self.backpropagate(currentNode, wins, loss, draws)
         N += nSims
-        
         # Prioritize initial moves based on heuristic evaluation
-        valid_moves = get_valid_moves(chess_board, player)
-        # sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.exec(chess_board, m, player), player, opponent), reverse=True)
-
-        # Timing the MCTS loop in the `step` method
-        start_time = time.time()
+        # valid_moves = get_valid_moves(chess_board, player)
+        # sorted_moves = sorted(valid_moves, key=lambda m: self.eval(self.exec(chess_board, m, player), player, opponent), reverse=True)
+        
         iteration = 0 # track iterations
 
         # MCTS Loop
