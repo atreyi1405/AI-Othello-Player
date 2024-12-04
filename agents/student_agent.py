@@ -5,11 +5,52 @@ from copy import deepcopy
 import time
 from helpers import random_move, count_capture, execute_move, check_endgame, get_valid_moves, get_directions
 
+class Node:
+    def __init__(self, chess_board, player=None, move=None, parent=None, eval_fn = None):
+        self.chess_board = chess_board # state of Board after position is evaluated
+        self.player = player # which player is playing
+        self.parent = parent # parent node 
+        self.move = move # action taken prior to transition from the parent to this child node, move = None for root node at game start.
+        self.children = [] # children nodes
+        self.visit = 0 # number of to. node was visited
+        self.wins = 0 # number of times scored / won
+        self.valid_moves = None # list of valid moves to take
+        self.eval_fn = eval_fn # self function with heuristical application
+    
+    def is_fully_expanded(self):
+        return len(self.children) == len(get_valid_moves(self.chess_board, self.player))
+
+    def uct(self, N, c=1):
+        max_eval_stage = 2618
+        min_eval_stage = -2618
+
+        if self.visit == 0:
+            return float('inf')
+
+        exploitation = self.wins / self.visit
+        exploration = c * np.sqrt(np.log(N+1) / (self.visit+1)) # self.parent.visit is used to reflect how much oppportunity to child node
+
+        # Adding a heuristic scoring scheme following the eval function as a bonus 
+        # to explore nodes with better board states
+        ## NOTE the self.parent.eval_fn vs self.eval_fn
+        if self.parent is not None: # in case it is a root node.
+            heuristic_score = self.parent.eval_fn(self.chess_board, self.player, -self.player)
+        else:
+            heuristic_score = self.eval_fn(self.chess_board, self.player, -self.player)
+        normalized_heuristic_score = heuristic_score / max(abs(max_eval_stage), abs(min_eval_stage))
+
+        return exploitation + exploration + 1 * normalized_heuristic_score
+
 @register_agent("student_agent")
 class StudentAgent(Agent):
     def __init__(self):
         super(StudentAgent, self).__init__()
         self.name = "StudentAgent"
+        self.iterations = 100 # Num of MCTS iterations
+        self.time_limit = 2 # Maximum time per move in seconds
+
+    def clone_board(self, board): # might help in reducing run-time vs deepcopy
+        return np.copy(board)
 
     #This method selects the best move for the agent based on the Alpha-Beta Pruning algorithm.
     def step(self, chess_board, player, opponent):
@@ -23,7 +64,7 @@ class StudentAgent(Agent):
         print("My alphabeta AI's turn took ", time_taken, "seconds.")
         return best_move
         # Solutions implemented can be called like:
-        # return self.greedyFlips(chess_board, player, opponent) or self.minimax(chess_board, player, opponent, depth, True)
+        # return self.greedyFlips(chess_board, player, opponent) or self.minimax(chess_board, player, opponent, depth, True) or self.mcts(self,chess_board,player,opponent)
         
 
     #This method implements a basic heuristic approach where the agent selects the move that maximizes the number of captured pieces. It is computationally efficient but lacks strategic depth.
@@ -88,7 +129,7 @@ class StudentAgent(Agent):
             #print("My minimax AI's turn took ", time_taken, "seconds.")
             return value, best_move
     
-    #Evaluation function - computes a score for a given board state. It takes into account factors such as corner occupancy, stability, mobility, and piece count, and adapts the weighting based on the game stage.
+    #Eval function (Atreyi)- computes a score for a given board state. It takes into account factors such as corner occupancy, stability, mobility, and piece count, and adapts the weighting based on the game stage.
     def eval(self, chess_board, player, opponent):
         corners = [(0, 0), (0, len(chess_board)-1), (len(chess_board)-1, 0), (len(chess_board)-1, len(chess_board)-1)]
         cornerVal = 100
@@ -148,7 +189,7 @@ class StudentAgent(Agent):
                 return False
         return True
 
-    #This method orders the valid moves based on their evaluation score to prioritize better moves
+    #This method orders the valid moves based on their eval score to prioritize better moves
     def order_moves(self, chess_board, moves, player): 
         return sorted(moves, key=lambda move: self.eval(self.exec(chess_board, move, player), player, 3 - player), reverse=True)
     
@@ -158,7 +199,7 @@ class StudentAgent(Agent):
         execute_move(new_board, move, player)
         return new_board
 
-    #Strongest algorithm developed so far - recursively explores the game tree while pruning branches that cannot influence the outcome
+    #Strongest algorithm developed so far - recursively explores the game tree while pruning branches that cannot influence the outcome, uses eval function by Atreyi
     def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None): 
         #print("We're at depth: ", depth, "...")
         if time.time() - start_time >= 1.9:
@@ -198,5 +239,252 @@ class StudentAgent(Agent):
             #print("My alphabeta AI's turn took ", time_taken, "seconds.")
             return value, best_move
         
+    def mcts(self, chess_board, player, opponent):
+        N = 0 # to track global simulations
+        # Track number of wins and losses for this turn in the simulations
+        wins = 0
+        loss = 0 
+        draws = 0
+        depth = 5
+        nSims = 2
+
+        total_squares = len(chess_board) * len(chess_board)
+        total_pieces = np.sum(chess_board != 0)  # Occupied squares
+        stage = total_pieces / total_squares
+        epsilon = 0.1 if stage < 0.5 else 0.05  # Less randomness in late game
+        
+
+        root = Node(chess_board=chess_board, player=player, eval_fn=self.evaluation)
+        self.expand(root)
+        currentNode = self.select(root, N)
+        wins, loss, draws = self.simulate(currentNode, nSims=nSims, depth=depth, epsilon=epsilon)
+        N += nSims
+        self.backpropagate(currentNode, wins, loss, draws)
+        N += nSims
+        
+        # Prioritize initial moves based on heuristic evaluation
+        valid_moves = get_valid_moves(chess_board, player)
+        # sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.exec(chess_board, m, player), player, opponent), reverse=True)
+
+        # Timing the MCTS loop in the `step` method
+        start_time = time.time()
+        iteration = 0 # track iterations
+
+        # MCTS Loop
+        while time.time() - start_time<self.time_limit and iteration < self.iterations:
+            # Execute MCTS Loop
+
+            # Selection, traverses the tree by selecting child node with highest UCT score
+            node = self.select(root, N)
+
+            # Expansion, after check to add a child for an unxplored move from current node
+            if not check_endgame(node.chess_board, node.player, opponent)[0]:
+                self.expand(node)
+
+            # Simulation, staring from expanded node to play to a random game to completion
+            wins, loss, draws = self.simulate(node, nSims=nSims, depth=depth, epsilon=epsilon)
+            N += nSims
+
+            # Backprogpagation
+            self.backpropagate(node, wins, loss, draws)
+            N += nSims
+
+            iteration += 1
+
+        print(f"MCTS completed {iteration} iterations in {time.time() - start_time:.4f} seconds")
+
+        # Once all the iterations or time limit up, decide on a child node.
+        # This is the child that will be chosen as the agent's next move.
+        # Select the child comparative to the root node.
+        best_child = max(root.children, key=lambda child: child.visit)
+        return best_child.move
+
+    def select(self, node, N):
+        """
+        Select node to decide which position to move based on UCT scoring. 
+        Adjustment factors to the UCT scoring is also applied (incrementally developed and tuned):
+        - Mobility: increase available options for subsequent turns
+        - Centrality: rewards movement that place pieces near the center of board for strategic control
+        - Corner occupancy: rewards corners and penalizes moves on losing corners
+        - greed penalty: would penalize captures of too many pieces early as that limits mobility and strategy.
+
+        These adjustment factors provide a deeper understanding for Reversi-specific strategies and decision-making.
+        N = # of simulated global games
+        """
+        while node.children and node.is_fully_expanded():
+            node = max(node.children, key=lambda child: child.uct(N))
+        return node
+    
+    def expand(self, node):
+        """
+        Expand by adding one valid move as a child node. 
+        Helps represent a child node within a new gamestate after executing the move
+        """
+        valid_moves = get_valid_moves(node.chess_board, node.player)
+        if not valid_moves:
+            return
+        
+        sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.exec(node.chess_board, m, node.player), node.player, -node.player), reverse=True)
+        tried_moves = {child.move for child in node.children}
+
+        for move in sorted_moves:
+            if move not in tried_moves:
+                new_board = deepcopy(node.chess_board)
+                execute_move(new_board, move, node.player)
+                new_player = -node.player # Switch player
+                child = Node(chess_board=new_board, player=new_player, move = move, parent = node, eval_fn=self.evaluation)
+                node.children.append(child)
+                break
+
+    def simulate(self, node, nSims = 5, depth = 10, epsilon = 0.1):
+        """"
+        Simulate according to exploration parameters until terminal state.
+        - nSims (default) = 5: number of games simulated starting from given node's state.
+        - Depth (default) = 10: Limit depth to speed up simulation.
+        - epsilon (default) = 0.1: Chance to select a random move for improved exploration.
+
+        
+        Returns the following cumulative counts:
+        - wins: Number of wins for the current player.
+        - losses: Number of losses for the current player.
+        - draws: Number of draws.
+        """
+        chess_board = self.clone_board(node.chess_board)
+        current_player = node.player
+        wins = 0
+        draws = 0
+        loss = 0
+
+        for _ in range(nSims): # perform a simulation
+            current_board = self.clone_board(chess_board)
+            current_player = node.player
+            for depth_iter in range(depth): # depth-limited rollout
+                is_endgame, player_score, opponent_score = check_endgame(current_board, current_player, -current_player)
+                if is_endgame:
+                    # print(f"ENDGAME, player_score: {player_score}; opponent_score: {opponent_score}")
+                    if player_score > opponent_score:
+                        wins += 1
+                    elif player_score < opponent_score:
+                        loss += 1
+                    else:
+                        draws += 1
+                    break
+                
+                valid_moves = get_valid_moves(chess_board, current_player)
+                if not valid_moves:
+                    current_player = -current_player
+                    continue
+                    t
+                sorted_moves = sorted(valid_moves, key=lambda m: self.evaluation(self.exec(node.chess_board, m, node.player), node.player, -node.player), reverse=True)
+                
+                # appplying epsilon-greedy randomization for move selection 
+                move = sorted_moves[0] if depth_iter == 0 else valid_moves[np.random.randint(len(valid_moves))]
+                # grab the highest heuristically viable move to execute
+
+                execute_move(chess_board, move, current_player)
+                current_player = -current_player
+
+        # Return the results of all simulations
+        return wins, loss, draws
+
+    def backpropagate(self, node, wins, loss, draws):
+        """
+        Propagates simulation result up the tree.
+        - wins: Number of wins for the current player.
+        - losses: Number of losses for the current player.
+        - draws: Number of draws.
+        """
+        # player's turn
+        turn = node.player
+
+        while node:
+            node.visit += wins + loss + draws  # total games played
+
+            if node.player == turn:
+                node.wins += wins
+            else:
+                node.wins += loss
+            
+            # move to parent node
+
+            node = node.parent
+
+    #Modified version of Atreyi's eval function, designed by Toufic
+    def evaluation(self, chess_board, player, opponent):
+        corners = [(0, 0), (0, len(chess_board)-1), (len(chess_board)-1, 0), (len(chess_board)-1, len(chess_board)-1)]
+        cornerVal = 100
+        center = len(chess_board) // 2
+        central_positions = [(center-1, center-1), (center-1, center), (center, center-1), (center, center)]
+
+        total_squares = len(chess_board) * len(chess_board)
+        total_pieces = np.sum(chess_board != 0)  # Occupied squares
+        stage = total_pieces / total_squares
+
+        corner_score = 0
+        stability_score = 0
+        mobility_score = 0
+        piece_score = 0
+        central_score = 0
+
+        # Corners are always better
+        for corner in corners:
+            if chess_board[corner[0]][corner[1]] == player:
+                corner_score += cornerVal
+            elif chess_board[corner[0]][corner[1]] == opponent:
+                corner_score -= cornerVal
+
+        if self.is_stable(chess_board, corner[0], corner[1], player):
+            corner_score += cornerVal * 2  # add even more weight to stable corners
+
+    
+
+        for pos in central_positions:
+            if chess_board[pos[0]][pos[1]] == player:
+                central_score += 10
+
+        # Stability measures how vulnerable the disc is to be flanked
+        for row in range(len(chess_board)):
+            for col in range(len(chess_board[row])):
+                if chess_board[row][col] == player and self.is_stable(chess_board, row, col, player):
+                    stability_score += 10
+                elif chess_board[row][col] == opponent and self.is_stable(chess_board, row, col, opponent):
+                    stability_score -= 10
+                
+                # Edges
+                if row == 0 or row == len(chess_board) - 1 or col == 0 or col == len(chess_board[0]) - 1:
+                    stability_score += 5  # add extra stability weight for edge pieces.
+
+        # Mobility measures how many moves the player has
+        player_moves = len(get_valid_moves(chess_board, player))
+        opponent_moves = len(get_valid_moves(chess_board, opponent))
+
+        # simulate future moves to calculate future mobility impact
+        for move in get_valid_moves(chess_board, player):
+            future_board = self.exec(chess_board, move, player)
+            future_player_moves = len(get_valid_moves(future_board, player))
+            if future_player_moves < player_moves:
+                mobility_score -= 20  # penalize moves that reduce mobility.
+
+        # stage-dependent mobility weighting
+        if stage < 0.3:  # Early game
+            mobility_score = 20 * (player_moves - opponent_moves) # priortize early movement
+        elif stage < 0.7:  # Mid game
+            mobility_score = 10 * (player_moves - opponent_moves) # less weighting mid-game
+        else:  # Late game
+            mobility_score = 5 * (player_moves - opponent_moves)  # minimized in late game.
+
+        
+        # stage-dependent piece counts weightings
+        player_pieces = np.sum(chess_board == player)
+        opponent_pieces = np.sum(chess_board == opponent)
+        if stage < 0.3:
+            piece_score = 0.1 * (player_pieces - opponent_pieces)
+        elif stage < 0.7:
+            piece_score = 0.5 * (player_pieces - opponent_pieces)
+        else:
+            piece_score = 1.0 * (player_pieces - opponent_pieces)
+        
+        return (0.5 * mobility_score + 1.5 * corner_score +
+            0.5 * stability_score + 0.3 * central_score + piece_score)
 
 
