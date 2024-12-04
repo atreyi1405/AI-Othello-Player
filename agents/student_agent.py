@@ -103,23 +103,38 @@ class StudentAgent(Agent):
     def eval(self, chess_board, player, opponent):
         corners = [(0, 0), (0, len(chess_board)-1), (len(chess_board)-1, 0), (len(chess_board)-1, len(chess_board)-1)]
         cornerVal = 100
-        #game stage for better strategies throughout --https://medium.com/@gmu1233/how-to-write-an-othello-ai-with-alpha-beta-search-58131ffe67eb, chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://barberalec.github.io/pdf/An_Analysis_of_Othello_AI_Strategies.pdf
-        total_squares = len(chess_board)*len(chess_board)
-        total_pieces = np.sum(chess_board != 0) #occupied
-        stage = total_pieces / total_squares 
-        corner_score=0 
-        stability_score=0
-        mobility_score=0 
-        piece_score=0 
+        center = len(chess_board) // 2
+        central_positions = [(center-1, center-1), (center-1, center), (center, center-1), (center, center)]
 
-        #corners are always better
+        total_squares = len(chess_board) * len(chess_board)
+        total_pieces = np.sum(chess_board != 0)  # Occupied squares
+        stage = total_pieces / total_squares
+
+        corner_score = 0
+        stability_score = 0
+        mobility_score = 0
+        piece_score = 0
+        central_score = 0
+
+        # Corners are always better
         for corner in corners:
             if chess_board[corner[0]][corner[1]] == player:
                 corner_score += cornerVal
             elif chess_board[corner[0]][corner[1]] == opponent:
                 corner_score -= cornerVal
 
-        #stability measures how vulnerable the disc is to be flanked
+        if self.is_stable(chess_board, corner[0], corner[1], player):
+            corner_score += cornerVal * 2  # add even more weight to stable corners
+
+        # Edges
+        if row == 0 or row == len(chess_board) - 1 or col == 0 or col == len(chess_board[0]) - 1:
+            stability_score += 5  # add extra stability weight for edge pieces.
+
+        for pos in central_positions:
+            if chess_board[pos[0]][pos[1]] == player:
+                central_score += 10
+
+        # Stability measures how vulnerable the disc is to be flanked
         for row in range(len(chess_board)):
             for col in range(len(chess_board[row])):
                 if chess_board[row][col] == player and self.is_stable(chess_board, row, col, player):
@@ -127,46 +142,63 @@ class StudentAgent(Agent):
                 elif chess_board[row][col] == opponent and self.is_stable(chess_board, row, col, opponent):
                     stability_score -= 10
 
-        #mobility measures how many moves the player has
+        # Mobility measures how many moves the player has
         player_moves = len(get_valid_moves(chess_board, player))
         opponent_moves = len(get_valid_moves(chess_board, opponent))
-        mobility_score = 10 * (player_moves - opponent_moves)
 
-        #pieve count- i believe this is not as important--https://www.ultraboardgames.com/othello/strategy.php
+        # simulate future moves to calculate future mobility impact
+        for move in get_valid_moves(chess_board, player):
+            future_board = self.exec(chess_board, move, player)
+            future_player_moves = len(get_valid_moves(future_board, player))
+            if future_player_moves < player_moves:
+                mobility_score -= 20  # penalize moves that reduce mobility.
+
+        # stage-dependent mobility weighting
+        if stage < 0.3:  # Early game
+            mobility_score = 20 * (player_moves - opponent_moves) # priortize early movement
+        elif stage < 0.7:  # Mid game
+            mobility_score = 10 * (player_moves - opponent_moves) # less weighting mid-game
+        else:  # Late game
+            mobility_score = 5 * (player_moves - opponent_moves)  # minimized in late game.
+
+        
+        # stage-dependent piece counts weightings
         player_pieces = np.sum(chess_board == player)
         opponent_pieces = np.sum(chess_board == opponent)
-        piece_score = player_pieces - opponent_pieces
-
-        #it's better to prioritise different things in different stages
         if stage < 0.3:
-            #print("total pieces occupied so far: ", total_pieces, "so this is the early stage, corners are imp")
-            return 0.5 * mobility_score + 1.5 * corner_score + 0.5 * stability_score #i actually am not sure about these numbers loll, trial and error-- have to make the early stage more attacking tho
+            piece_score = 0.1 * (player_pieces - opponent_pieces)
         elif stage < 0.7:
-            #print("total pieces occupied so far: ", total_pieces, "so this is the mid stage")
-            return 1.0 * mobility_score + 1.5 * corner_score + 0.8 * stability_score + 0.2 * piece_score #gets slightly better at attcking
+            piece_score = 0.5 * (player_pieces - opponent_pieces)
         else:
-            #print("total pieces occupied so far: ", total_pieces, "so this is the late stage, corners are imp")
-            return 0.2 * mobility_score + 2.0 * corner_score + 1.0 * piece_score + 0.5 * stability_score #it does better against random in the late stages, but might lose to human agent
-
+            piece_score = 1.0 * (player_pieces - opponent_pieces)
+        
+        return (0.5 * mobility_score + 1.5 * corner_score +
+            0.5 * stability_score + 0.3 * central_score + piece_score)
+        
     def is_stable(self, chess_board, row, col, player):
+        """
+        Determine if a piece is stable (not flippable).
+        A piece is stable if it is in a corner or fully surrounded by the same color in all directions.
+        """
         if (row == 0 or row == len(chess_board) - 1) or (col == 0 or col == len(chess_board[0]) - 1):
-            return True
-        directions=get_directions() #defined in helper.py
+            return True  # Corners and edges are inherently more stable
+        directions = get_directions()
         for dr, dc in directions:
             r, c = row + dr, col + dc
             if 0 <= r < len(chess_board) and 0 <= c < len(chess_board[0]) and chess_board[r][c] != player:
                 return False
         return True
-
+    
     def order_moves(self, chess_board, moves, player): #prioritising moves based on eval score
         return sorted(moves, key=lambda move: self.eval(self.exec(chess_board, move, player), player, 3 - player), reverse=True)
+    
     def exec(self, chess_board, move, player):
         new_board = deepcopy(chess_board)
         execute_move(new_board, move, player)
         return new_board
 
     def alphabeta(self, chess_board, player, opponent, depth, isMax, alpha=float('-inf'), beta=float('inf'), start_time=None): #start_time=None
-        print("We're at depth: ", depth, "...")
+        #print("We're at depth: ", depth, "...")
         if time.time() - start_time >= 1.9:
             return 0, None  #the max turn time was going up till 5 seconds
         best_move = None
