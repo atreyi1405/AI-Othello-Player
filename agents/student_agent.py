@@ -241,6 +241,25 @@ class StudentAgent(Agent):
             return value, best_move
         
     def mcts(self, chess_board, player, opponent):
+        """
+        This is the function of student_agent's search for optimal next move.
+        Following the Monte Carlo Tree Search algorithm, the following is looped given constraints below:
+        - Select child node with the highest UCT score (using self.select(node, N)).
+        - Expand this child node and traverse down the tree leaf node (using self.expand(node)).
+        - Simulate the game result depending on moves (using self.simulate(node)).
+        - Backpropagate result up the tree (using self.backpropagate(node, , wins, loss, draws)).
+
+        However, preceding this loop is an explicit root expansion before starting itereations.
+        This helps ensure all initial moves are considered upfront. 
+
+        Given student_agent.iterations or student_agent.time_limit constraints (whichever reached first).
+
+        Returns:
+        - best_child.move which is the next move the student_agent will take.
+
+        Reference of code logic:
+        - Hung, Roy. “Roy Hung.” Roy Hung | A Reversi Playing Agent and the Monte Carlo Tree Search Algorithm, royhung.com/reversi. Accessed 4 Dec. 2024.
+        """
         N = 0 # to track global simulations
         # Track number of wins and losses for this turn in the simulations
         wins = 0
